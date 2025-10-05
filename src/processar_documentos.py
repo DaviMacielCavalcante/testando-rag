@@ -243,36 +243,12 @@ def processar_documentos():
       
     if total_chunks_adicionados > 0:
         print("Sistema pronto para uso!")
-        print(f"💡 Próximos passos:")
-        print(f"   1. Configure um modelo LLM (Ollama, OpenAI, etc)")
-        print(f"   2. Execute o sistema RAG")
-        print(f"   3. Faça perguntas sobre seus documentos!")
-        
-        # Teste rápido de busca
-        print(f"\n🔍 Teste rápido de busca...")
-        try:
-            query_test = "principais"
-            query_embedding = embedding_model.encode(query_test).tolist()
-            resultados = collection.query(
-                query_embeddings=[query_embedding],
-                n_results=2
-            )
-            
-            if resultados['documents'][0]:
-                print(f"✓ Busca funcionando! Encontrados documentos relevantes")
-                print(f"  Exemplo: {resultados['documents'][0][0][:100]}...")
-            else:
-                print("⚠️ Busca não retornou resultados")
-                
-        except Exception as e:
-            print(f"⚠️ Erro no teste de busca: {e}")
-    
     else:
-        print(f"\n⚠️ Nenhum documento foi processado com sucesso")
-        print(f"💡 Verifique:")
-        print(f"   - Os arquivos são .docx válidos?")
-        print(f"   - Os arquivos não estão corrompidos?")
-        print(f"   - Você tem permissão para ler os arquivos?")
+        print("Nenhum documento foi processado com sucesso")
+        print("Verifique:")
+        print("- Os arquivos são .docx válidos?")
+        print("- Os arquivos não estão corrompidos?")
+        print("- Você tem permissão para ler os arquivos?")
     
     return total_chunks_adicionados > 0
 
