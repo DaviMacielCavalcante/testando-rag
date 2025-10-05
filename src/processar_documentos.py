@@ -133,6 +133,31 @@ def criar_colecao(client, colecao):
         collection = client.create_collection(colecao)
         print(f"Coleção'{colecao}' criada!")
     return collection
+
+def carregar_modelo_embedding():
+    try:
+        embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    except Exception as e:
+        print(f"Erro ao carregar modelo: {e}")
+        print("Execute: pip install sentence-transformers")
+        return None
+    
+    return embedding_model
+
+def criar_metadados(chunks, arquivo_path, texto):
+    metadados = []
+    for i, chunk in enumerate(chunks):
+                metadados.append({
+                    "arquivo": arquivo_path.name,
+                    "caminho_completo": str(arquivo_path.absolute()),
+                    "chunk_index": i,
+                    "total_chunks": len(chunks),
+                    "tamanho_chunk": len(chunk),
+                    "palavras_chunk": len(chunk.split()),
+                    "tamanho_arquivo_original": len(texto)
+                })
+    return metadados
+    
     
 def processar_documentos():
     """
@@ -142,62 +167,43 @@ def processar_documentos():
     CHUNK_SIZE = 1000      
     CHUNK_OVERLAP = 200    
     
-    # ===== 1. VERIFICAR PASTA DE DOCUMENTOS =====
-    
     arquivos_docx = verificar_pasta_de_documentos()
+
+    if not arquivos_docx:  
+        return False
     
     # ===== 2. CONFIGURAR CHROMADB =====
-    
     client = criar_chromadb(BASE_DADOS)
 
+    if not client:  
+        return False
+
     collection = criar_colecao(client, COLECAO)
+    if not collection:  
+        return False
     
     # ===== 3. CARREGAR MODELO DE EMBEDDINGS =====
-    
-    try:
-        embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-    except Exception as e:
-        print(f"Erro ao carregar modelo: {e}")
-        print("Execute: pip install sentence-transformers")
+    embedding_model = carregar_modelo_embedding()
+    if not embedding_model:  
         return False
     
     # ===== 4. PROCESSAR CADA ARQUIVO =====
-    
     total_chunks_adicionados = 0
-    arquivos_processados = 0
     
     for i, arquivo_path in enumerate(arquivos_docx, 1):
         
+        texto = extrair_texto_docx(str(arquivo_path))
+        if not texto:
+            continue
+
+        chunks = dividir_texto_em_chunks(texto, CHUNK_SIZE, CHUNK_OVERLAP)
+        if not chunks:
+            print(f"Nenhum chunk criado para {arquivo_path.name}")
+            continue
+
+        metadados = criar_metadados(chunks, arquivo_path, texto)
+        
         try:
-            texto = extrair_texto_docx(str(arquivo_path))
-            
-            if not texto:
-                continue
-            
-            print(f"✓ Texto extraído: {len(texto):,} caracteres")
-            
-            # Dividir em chunks
-            chunks = dividir_texto_em_chunks(texto, CHUNK_SIZE, CHUNK_OVERLAP)
-            
-            if not chunks:
-                print(f"⚠️ Nenhum chunk criado para {arquivo_path.name}")
-                continue
-                
-            print(f"✓ Dividido em {len(chunks)} chunks")
-            
-            # Criar metadados para cada chunk
-            metadados = []
-            for j, chunk in enumerate(chunks):
-                metadados.append({
-                    "arquivo": arquivo_path.name,
-                    "caminho_completo": str(arquivo_path.absolute()),
-                    "chunk_index": j,
-                    "total_chunks": len(chunks),
-                    "tamanho_chunk": len(chunk),
-                    "palavras_chunk": len(chunk.split()),
-                    "tamanho_arquivo_original": len(texto)
-                })
-            
             # Gerar IDs únicos
             base_id = arquivo_path.stem  # Nome sem extensão
             ids = [f"{base_id}_chunk_{j:03d}" for j in range(len(chunks))]
@@ -206,7 +212,7 @@ def processar_documentos():
             try:
                 existentes = collection.get(ids=ids)
                 if existentes['ids']:
-                    print(f"⚠️ Arquivo já processado anteriormente. Pulando...")
+                    print("⚠️ Arquivo já processado anteriormente. Pulando...")
                     continue
             except:
                 pass  # Continuar se não conseguir verificar
@@ -225,26 +231,11 @@ def processar_documentos():
             
             print(f"✅ {len(chunks)} chunks adicionados ao ChromaDB")
             total_chunks_adicionados += len(chunks)
-            arquivos_processados += 1
             
         except Exception as e:
             print(f"❌ Erro ao processar {arquivo_path.name}: {e}")
             continue
-    
-    # ===== 5. RESUMO FINAL =====
-    
-    print(f"\n" + "=" * 60)
-    print(f"🎉 PROCESSAMENTO CONCLUÍDO!")
-    print(f"=" * 60)
-    print(f"📊 Arquivos processados: {arquivos_processados}/{len(arquivos_docx)}")
-    print(f"📦 Total de chunks criados: {total_chunks_adicionados}")
-    print(f"💾 Base de dados salva em: {BASE_DADOS}")
-    print(f"📚 Coleção: {COLECAO}")
-    
-    # Estatísticas finais
-    total_final = collection.count()
-    print(f"📈 Total de chunks na base: {total_final}")
-    
+      
     if total_chunks_adicionados > 0:
         print(f"\n✅ Sistema pronto para uso!")
         print(f"💡 Próximos passos:")
