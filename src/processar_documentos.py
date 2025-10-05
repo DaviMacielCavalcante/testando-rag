@@ -26,24 +26,25 @@ def extrair_texto_docx(caminho_arquivo):
             if paragrafo.text.strip():  # Só adicionar se não for vazio
                 texto += paragrafo.text + "\n"
         
-        # Extrair tabelas
-        for tabela in doc.tables:
-            for linha in tabela.rows:
-                linha_texto = ""
-                for celula in linha.cells:
-                    linha_texto += celula.text + " | "
-                if linha_texto.strip():
-                    texto += linha_texto + "\n"
+        # Extrair tabelas caso existam
+        if doc.tables:
+            linhas_tabela = []
+
+            for tabela in doc.tables:
+                for linha in tabela.rows:
+                    linha_texto = " | ".join(celula.text for celula in linha.cells)
+                    
+                    if linha_texto.strip():
+                        linhas_tabela.append(linha_texto + "\n")
         
         return texto.strip()
         
     except ImportError:
-        print("❌ python-docx não instalado!")
-        print("Execute: pip install python-docx")
+        print("python-docx não instalado! Execute: pip install python-docx")
         return None
         
     except Exception as e:
-        print(f"❌ Erro ao extrair texto de {caminho_arquivo}: {e}")
+        print(f"Erro ao extrair texto de {caminho_arquivo}: {e}")
         return None
 
 
