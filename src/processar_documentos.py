@@ -158,6 +158,57 @@ def criar_metadados(chunks, arquivo_path, texto):
                 })
     return metadados
     
+def chunks_already_exists(collection, ids):
+    try:
+        existentes = collection.get(ids=ids)
+        return bool(existentes['ids'])
+    except Exception as e:
+        print(f"Não foi possível fazer a verificação: {e}")
+
+
+def processing_files(arquivos_docx, chunk_size, chunk_overlap, embedding_model, collection):
+
+    total_chunks_adicionados = 0
+
+    for i, arquivo_path in enumerate(arquivos_docx, 1):
+        
+        texto = extrair_texto_docx(str(arquivo_path))
+        if not texto:
+            continue
+
+        chunks = dividir_texto_em_chunks(texto, chunk_size, chunk_overlap)
+        if not chunks:
+            print(f"Nenhum chunk criado para {arquivo_path.name}")
+            continue
+
+        metadados = criar_metadados(chunks, arquivo_path, texto)
+
+        try:
+            # Gerar IDs únicos
+            base_id = arquivo_path.stem  
+            ids = [f"{base_id}_chunk_{j:03d}" for j in range(len(chunks))]
+            
+            # Verificar se já existem chunks deste arquivo
+            if chunks_already_exists(collection, ids):
+                continue
+            
+            embeddings = embedding_model.encode(chunks, show_progress_bar=False).tolist()
+            
+            collection.add(
+                documents=chunks,
+                embeddings=embeddings,
+                metadatas=metadados,
+                ids=ids
+            )
+            
+            total_chunks_adicionados += len(chunks)
+            
+        except Exception as e:
+            print(f"Erro ao processar {arquivo_path.name}: {e}")
+            continue
+
+    return total_chunks_adicionados
+
     
 def processar_documentos():
     """
@@ -188,56 +239,10 @@ def processar_documentos():
         return False
     
     # ===== 4. PROCESSAR CADA ARQUIVO =====
-    total_chunks_adicionados = 0
-    
-    for i, arquivo_path in enumerate(arquivos_docx, 1):
-        
-        texto = extrair_texto_docx(str(arquivo_path))
-        if not texto:
-            continue
-
-        chunks = dividir_texto_em_chunks(texto, CHUNK_SIZE, CHUNK_OVERLAP)
-        if not chunks:
-            print(f"Nenhum chunk criado para {arquivo_path.name}")
-            continue
-
-        metadados = criar_metadados(chunks, arquivo_path, texto)
-        
-        try:
-            # Gerar IDs únicos
-            base_id = arquivo_path.stem  # Nome sem extensão
-            ids = [f"{base_id}_chunk_{j:03d}" for j in range(len(chunks))]
-            
-            # Verificar se já existem chunks deste arquivo
-            try:
-                existentes = collection.get(ids=ids)
-                if existentes['ids']:
-                    print("⚠️ Arquivo já processado anteriormente. Pulando...")
-                    continue
-            except:
-                pass  # Continuar se não conseguir verificar
-            
-            # Criar embeddings
-            print("🔄 Criando embeddings...")
-            embeddings = embedding_model.encode(chunks, show_progress_bar=False).tolist()
-            
-            # Adicionar ao ChromaDB
-            collection.add(
-                documents=chunks,
-                embeddings=embeddings,
-                metadatas=metadados,
-                ids=ids
-            )
-            
-            print(f"✅ {len(chunks)} chunks adicionados ao ChromaDB")
-            total_chunks_adicionados += len(chunks)
-            
-        except Exception as e:
-            print(f"❌ Erro ao processar {arquivo_path.name}: {e}")
-            continue
+    total_chunks_adicionados = processing_files(collection, CHUNK_SIZE, CHUNK_OVERLAP, embedding_model, collection)
       
     if total_chunks_adicionados > 0:
-        print(f"\n✅ Sistema pronto para uso!")
+        print("Sistema pronto para uso!")
         print(f"💡 Próximos passos:")
         print(f"   1. Configure um modelo LLM (Ollama, OpenAI, etc)")
         print(f"   2. Execute o sistema RAG")
