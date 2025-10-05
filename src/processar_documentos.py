@@ -9,6 +9,8 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 from pathlib import Path
 
+BASE_DADOS = "./chromadb_base"  
+
 def extrair_texto_docx(caminho_arquivo):
     """
     Extrai texto de arquivo DOCX
@@ -90,8 +92,7 @@ def processar_documentos():
     print("=" * 60)
     
     # ===== CONFIGURAÇÕES =====
-    PASTA_DOCUMENTOS = "./documentos"  # 👈 Pasta com seus DOCX
-    BASE_DADOS = "./chromadb_base"          # Onde salvar ChromaDB
+    PASTA_DOCUMENTOS = "./documentos"  # 👈 Pasta com seus DOCX       # Onde salvar ChromaDB
     COLECAO = "documentos_word"             # Nome da coleção
     
     # Configurações de chunk
@@ -289,7 +290,6 @@ def verificar_status():
     """
     Verifica o status atual da base de dados
     """
-    BASE_DADOS = "./chromadb_base"
     COLECAO = "documentos_word"
     
     print("📊 STATUS DA BASE DE DADOS")
@@ -362,8 +362,8 @@ def menu_principal():
             confirma = input("\n⚠️ Tem certeza que quer apagar a base? (sim/não): ")
             if confirma.lower() in ['sim', 's', 'yes', 'y']:
                 try:
-                    if os.path.exists("./chromadb_base"):
-                        shutil.rmtree("./chromadb_base")
+                    if os.path.exists(BASE_DADOS):
+                        shutil.rmtree(BASE_DADOS)
                         print("✅ Base de dados apagada!")
                     else:
                         print("ℹ️ Base de dados não existe")
