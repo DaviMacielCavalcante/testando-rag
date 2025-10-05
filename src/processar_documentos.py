@@ -10,6 +10,8 @@ from sentence_transformers import SentenceTransformer
 from pathlib import Path
 
 BASE_DADOS = "./chromadb_base"  
+PASTA_DOCUMENTOS = "./documentos"
+COLECAO = "documentos_word"             
 
 def extrair_texto_docx(caminho_arquivo):
     """
@@ -84,24 +86,13 @@ def dividir_texto_em_chunks(texto, tamanho=1000, sobreposicao=200):
     return chunks
 
 
-def processar_documentos():
-    """
-    Função principal para processar todos os documentos DOCX
-    """
+def verificar_pasta_de_documentos():
 
-    PASTA_DOCUMENTOS = "./documentos"  #
-    COLECAO = "documentos_word"             
-
-    CHUNK_SIZE = 1000      
-    CHUNK_OVERLAP = 200    
-    
-    # ===== 1. VERIFICAR PASTA DE DOCUMENTOS =====
-    
     if not os.path.exists(PASTA_DOCUMENTOS):
         print(f"Pasta não encontrada: {PASTA_DOCUMENTOS}")
         print("Crie a pasta e coloque seus arquivos .docx nela:")
         print(f"mkdir {PASTA_DOCUMENTOS}")
-        return False
+        return []
     
     pasta = Path(PASTA_DOCUMENTOS)
     arquivos_docx = []
@@ -116,22 +107,50 @@ def processar_documentos():
         print("Coloque arquivos .docx na pasta e tente novamente!")
         return False
     
+    return arquivos_docx
+
+def criar_chromadb(base_dados):
+
+    try:
+        client = chromadb.PersistentClient(path=base_dados)
+    except PermissionError as e:
+        print(f"Permissão ao banco negada: {e}")
+        return None
+    except Exception as e:
+        print(f"Erro ao configurar ChromaDB: {e}")
+        return None
+    
+    return client
+
+def criar_colecao(client, colecao):
+    if not client:
+        return False
+    if not colecao:
+        return False
+    try:
+        collection = client.get_collection(colecao)
+    except ValueError:
+        collection = client.create_collection(colecao)
+        print(f"Coleção'{colecao}' criada!")
+    return collection
+    
+def processar_documentos():
+    """
+    Função principal para processar todos os documentos DOCX
+    """
+
+    CHUNK_SIZE = 1000      
+    CHUNK_OVERLAP = 200    
+    
+    # ===== 1. VERIFICAR PASTA DE DOCUMENTOS =====
+    
+    arquivos_docx = verificar_pasta_de_documentos()
     
     # ===== 2. CONFIGURAR CHROMADB =====
     
-    try:
-        client = chromadb.PersistentClient(path=BASE_DADOS)
-        
-        try:
-            collection = client.get_collection(COLECAO)
-        except ValueError:
-            collection = client.create_collection(COLECAO)
-            print(f"Coleção'{COLECAO}' criada!")
-    except PermissionError as e:
-        print(f"Permissão ao banco negada: {e}")
-    except Exception as e:
-        print(f"Erro ao configurar ChromaDB: {e}")
-        return False
+    client = criar_chromadb(BASE_DADOS)
+
+    collection = criar_colecao(client, COLECAO)
     
     # ===== 3. CARREGAR MODELO DE EMBEDDINGS =====
     
