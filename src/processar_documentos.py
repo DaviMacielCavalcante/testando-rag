@@ -88,95 +88,71 @@ def processar_documentos():
     """
     Função principal para processar todos os documentos DOCX
     """
-    print("🚀 PROCESSAMENTO DE DOCUMENTOS DOCX PARA CHROMADB")
-    print("=" * 60)
-    
-    # ===== CONFIGURAÇÕES =====
-    PASTA_DOCUMENTOS = "./documentos"  # 👈 Pasta com seus DOCX       # Onde salvar ChromaDB
-    COLECAO = "documentos_word"             # Nome da coleção
-    
-    # Configurações de chunk
-    CHUNK_SIZE = 1000      # Tamanho de cada pedaço
-    CHUNK_OVERLAP = 200    # Sobreposição entre pedaços
+
+    PASTA_DOCUMENTOS = "./documentos"  #
+    COLECAO = "documentos_word"             
+
+    CHUNK_SIZE = 1000      
+    CHUNK_OVERLAP = 200    
     
     # ===== 1. VERIFICAR PASTA DE DOCUMENTOS =====
     
     if not os.path.exists(PASTA_DOCUMENTOS):
-        print(f"❌ Pasta não encontrada: {PASTA_DOCUMENTOS}")
-        print(f"💡 Crie a pasta e coloque seus arquivos .docx nela:")
-        print(f"   mkdir {PASTA_DOCUMENTOS}")
+        print(f"Pasta não encontrada: {PASTA_DOCUMENTOS}")
+        print("Crie a pasta e coloque seus arquivos .docx nela:")
+        print(f"mkdir {PASTA_DOCUMENTOS}")
         return False
     
-    # Encontrar arquivos DOCX
     pasta = Path(PASTA_DOCUMENTOS)
     arquivos_docx = []
     
-    # Buscar arquivos .docx e .DOCX
     for padrao in ["*.docx", "*.DOCX"]:
         arquivos_docx.extend(list(pasta.glob(padrao)))
     
-    # Filtrar arquivos temporários do Word (começam com ~$)
     arquivos_docx = [f for f in arquivos_docx if not f.name.startswith("~$")]
     
     if not arquivos_docx:
-        print(f"❌ Nenhum arquivo .docx encontrado em {PASTA_DOCUMENTOS}")
-        print(f"💡 Coloque arquivos .docx na pasta e tente novamente")
+        print(f"Nenhum arquivo .docx encontrado em {PASTA_DOCUMENTOS}")
+        print("Coloque arquivos .docx na pasta e tente novamente!")
         return False
     
-    print(f"📁 Encontrados {len(arquivos_docx)} arquivos DOCX:")
-    for arquivo in arquivos_docx:
-        tamanho_mb = arquivo.stat().st_size / (1024 * 1024)
-        print(f"  📄 {arquivo.name} ({tamanho_mb:.1f} MB)")
     
     # ===== 2. CONFIGURAR CHROMADB =====
-    
-    print(f"\n⚙️ Configurando ChromaDB em {BASE_DADOS}...")
     
     try:
         client = chromadb.PersistentClient(path=BASE_DADOS)
         
-        # Criar ou conectar à coleção
         try:
             collection = client.get_collection(COLECAO)
-            print(f"✓ Conectado à coleção existente '{COLECAO}'")
-            print(f"  📊 Documentos atuais: {collection.count()}")
-        except:
+        except ValueError:
             collection = client.create_collection(COLECAO)
-            print(f"✓ Nova coleção '{COLECAO}' criada")
-        
+            print(f"Coleção'{COLECAO}' criada!")
+    except PermissionError as e:
+        print(f"Permissão ao banco negada: {e}")
     except Exception as e:
-        print(f"❌ Erro ao configurar ChromaDB: {e}")
+        print(f"Erro ao configurar ChromaDB: {e}")
         return False
     
     # ===== 3. CARREGAR MODELO DE EMBEDDINGS =====
     
-    print(f"\n🔢 Carregando modelo de embeddings...")
-    
     try:
         embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        print("✓ Modelo de embeddings carregado")
     except Exception as e:
-        print(f"❌ Erro ao carregar modelo: {e}")
-        print("💡 Execute: pip install sentence-transformers")
+        print(f"Erro ao carregar modelo: {e}")
+        print("Execute: pip install sentence-transformers")
         return False
     
     # ===== 4. PROCESSAR CADA ARQUIVO =====
-    
-    print(f"\n📚 Processando documentos...")
-    print("=" * 40)
     
     total_chunks_adicionados = 0
     arquivos_processados = 0
     
     for i, arquivo_path in enumerate(arquivos_docx, 1):
-        print(f"\n[{i}/{len(arquivos_docx)}] Processando: {arquivo_path.name}")
         
         try:
-            # Extrair texto
             texto = extrair_texto_docx(str(arquivo_path))
             
             if not texto:
-                print(f"⚠️ Nenhum texto extraído de {arquivo_path.name}")
                 continue
             
             print(f"✓ Texto extraído: {len(texto):,} caracteres")
