@@ -63,28 +63,21 @@ def dividir_texto_em_chunks(texto, tamanho=1000, sobreposicao=200):
         
         # Se não é o último chunk, tentar quebrar em local natural
         if fim < len(texto):
-            # Procurar por quebra de parágrafo
+    
             quebra_paragrafo = texto.rfind('\n\n', inicio, fim)
             if quebra_paragrafo > inicio + tamanho * 0.5:
                 fim = quebra_paragrafo + 2
-            else:
-                # Procurar por fim de frase
-                quebra_frase = texto.rfind('. ', inicio, fim)
-                if quebra_frase > inicio + tamanho * 0.7:
-                    fim = quebra_frase + 2
+            
+            quebra_frase = texto.rfind('. ', inicio, fim)
+            if quebra_frase > inicio + tamanho * 0.7:
+                fim = quebra_frase + 2
         
         chunk = texto[inicio:fim].strip()
         
-        if len(chunk) > 50:  # Só adicionar chunks com conteúdo suficiente
+        if len(chunk) > 50:  
             chunks.append(chunk)
-        
-        if fim >= len(texto):
-            break
             
-        # Próximo chunk com sobreposição
-        inicio = fim - sobreposicao
-        if inicio < 0:
-            inicio = 0
+        inicio = fim - sobreposicao if fim - sobreposicao >= 0 else 0
     
     return chunks
 
